@@ -2,89 +2,38 @@
 import React, { useState, useEffect } from "react";
 import { User, Lock, X, Link } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { signUp } from "../../api/v1/auth/signUp/route";
 
 interface SignUpProps {
-  onAuthSuccess?: (username: string) => void;
+  onAuthSuccess?: (email: string) => void;
   onClose?: () => void;
   onToggleView?: () => void;
 }
 
 export default function SignUp({
   onAuthSuccess,
-  onClose,
 }: SignUpProps) {
-  const router = useRouter();
-  const [username, setUsername] = useState("");
+  // 1. Using name, email and password for supabase compatibility
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [passwordStrengthMsg, setPasswordStrengthMsg] = useState("");
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
-  // Runaway Checkbox state
-  const [runawayOffset, setRunawayOffset] = useState({ x: 0, y: 0 });
-  const [runawayCount, setRunawayCount] = useState(0);
-  const [isHumanChecked, setIsHumanChecked] = useState(false);
+  // 2. Added loading state to prevent double clicks
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Signature Pad state
-  const [hasSigned, setHasSigned] = useState(false);
 
-  // Trigger password strength humorous warnings
-  useEffect(() => {
-    if (!password) {
-      setPasswordStrengthMsg("");
-      return;
-    }
-    if (password.length < 4) {
-      setPasswordStrengthMsg(
-        "⚠️ So weak a gust of wind from your browser window could leak it.",
-      );
-    } else if (password.length < 8) {
-      setPasswordStrengthMsg(
-        "⚠️ Moderately weak. It is like writing your pin on the cover of the book.",
-      );
-    } else if (!/[0-9]/.test(password) || !/[!@#$%^&*]/.test(password)) {
-      setPasswordStrengthMsg(
-        "ℹ️ Safe-ish, but a library mouse could probably chew through it. Add numbers/symbols.",
-      );
-    } else {
-      setPasswordStrengthMsg(
-        "✨ Strong! This password could survive a coffee spill.",
-      );
-    }
-  }, [password]);
-
-  // Runaway checkbox trigger
-  const handleRunawayHover = () => {
-    if (isHumanChecked || runawayCount >= 2) return;
-
-    // Jump to a random offset
-    const randomX = (Math.random() - 0.5) * 160;
-    const randomY = (Math.random() - 0.5) * 60;
-    setRunawayOffset({ x: randomX, y: randomY });
-    setRunawayCount((prev) => prev + 1);
-  };
-
-  const handleRunawayClick = () => {
-    if (runawayCount < 2) {
-      handleRunawayHover();
-    } else {
-      setIsHumanChecked((prev) => !prev);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: { [key: string]: string } = {};
 
-    if (!username.trim()) {
-      newErrors.username = "⚠️ This field is emptier than my desk coffee cup.";
-    } else if (
-      username.toLowerCase() === "admin" ||
-      username.toLowerCase() === "god"
-    ) {
-      newErrors.username =
-        "⚠️ Too much power! Pick a username with less divine responsibility.";
+    if (!fullName.trim()) {
+      newErrors.fullName = "⚠️ This field is emptier than my desk coffee cup.";
+    }
+
+    if (!email.trim()) {
+      newErrors.email = "⚠️ This field is emptier than my desk coffee cup.";
     }
 
     if (!password) {
@@ -92,34 +41,49 @@ export default function SignUp({
         "⚠️ Please enter a password. Empty spaces don't lock notebooks.";
     }
 
-    if (password !== confirmPassword) {
-      newErrors.confirmPassword =
-        "⚠️ Passwords do not match. Did you forget what you wrote above?";
-    }
-    if (!isHumanChecked) {
-      newErrors.human = "⚠️ Please prove you are not a paper shredder.";
-    }
-    if (!hasSigned) {
-      newErrors.signature =
-        "⚠️ Ink signature required. A signature is a serious pledge!";
-    }
-
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    localStorage.setItem("username", username);
-    localStorage.setItem("syntaxnote_user", username);
-    if (onAuthSuccess) {
-      onAuthSuccess(username);
+    setIsLoading(true);
+    setErrors({}); // Clear previous errors
+
+    // 3. Create FormData to pass to the Server Action
+    const formData = new FormData();
+    formData.append("name", fullName);
+    formData.append("email", email);
+    formData.append("password", password);
+
+    // 4. Call the Server Action
+    const result = await signUp(formData);
+
+    // 5. Handle potential validation or database errors
+    if (result?.success === false) {
+      if (result.error) {
+        // Validation errors from Zod matching your schema structure
+        setErrors({
+          fullName: result.error.name?.[0] || "",
+          email: result.error.email?.[0] || "",
+          password: result.error.password?.[0] || "",
+        });
+      } else if (result.message) {
+        // Error from Supabase (e.g. wrong password, user not found)
+        setErrors({ general: result.message });
+      }
+      setIsLoading(false);
+      return;
     }
-    // Redirect to the desk page
-    window.location.href = "/desk";
-  };
+
+    // Note: If success is true, the server action handles the redirect() to "/"!
+    // Success will be intercepted by the Server Action's redirect("/")
+    if (onAuthSuccess) {
+      onAuthSuccess(email);
+    }
+  };;;;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md select-none font-patrick">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white-950/70 backdrop-blur-md select-none font-patrick">
       <div className="relative w-full max-w-md p-6 mx-4">
         {/* Washi Decals on the Corners */}
         <div className="absolute top-2 left-6 w-16 h-5 bg-yellow-200/40 border-x border-dashed border-yellow-400/30 transform -rotate-12 pointer-events-none z-10" />
@@ -132,7 +96,9 @@ export default function SignUp({
 
           {/* Close button */}
           <button
-            onClick={() => {window.location.href = "/"}}
+            onClick={() => {
+              window.location.href = "/";
+            }}
             className="absolute top-2 right-2 p-1 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
           >
             <X size={20} />
@@ -251,12 +217,17 @@ export default function SignUp({
             </p>
           </div>
 
-          <h2 className="text-center font-caveat text-4xl font-bold text-violet-750 tracking-wide mb-1 drop-shadow-sm">
-            Join the NoteBook Club
+          <h2 className="text-center font-caveat text-4xl font-bold text-violet-750 tracking-wide mb-1 drop-shadow-sm pb-5">
+            Join the NoteBook
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Username Input */}
+            {errors.general && (
+              <div className="p-2 bg-red-50 border border-red-200 text-red-600 rounded text-xs font-bold text-center">
+                ⚠️ {errors.general}
+              </div>
+            )}
+            {/* Full Name Input */}
             <div>
               <label className="text-slate-500 font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1">
                 <User size={12} />
@@ -264,19 +235,48 @@ export default function SignUp({
               </label>
               <input
                 type="text"
-                value={username}
+                value={fullName}
                 onChange={(e) => {
-                  setUsername(e.target.value);
-                  if (errors.username)
-                    setErrors((prev) => ({ ...prev, username: "" }));
+                  setFullName(e.target.value);
+                  if (errors.fullName)
+                    setErrors((prev) => ({ ...prev, fullName: "" }));
+                  if (errors.general)
+                    setErrors((prev) => ({ ...prev, general: "" }));
                 }}
                 className="w-full px-3 py-1.5 bg-white/70 border border-slate-300 rounded font-patrick text-md text-slate-800 focus:outline-none focus:border-violet-500 transition-colors shadow-sm"
-                placeholder="Type your username..."
+                placeholder="Type your fullName..."
                 maxLength={20}
               />
-              {errors.username && (
+              {errors.fullName && (
                 <p className="text-[11px] text-red-500 mt-0.5">
-                  {errors.username}
+                  {errors.fullName}
+                </p>
+              )}
+            </div>
+
+            {/* Email Input */}
+            <div>
+              <label className="text-slate-500 font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1">
+                <User size={12} />
+                <span>Cardholder Email</span>
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email)
+                    setErrors((prev) => ({ ...prev, email: "" }));
+                  if (errors.general)
+                    setErrors((prev) => ({ ...prev, general: "" }));
+                }}
+                className="w-full px-3 py-1.5 bg-white/70 border border-slate-300 rounded font-patrick text-md text-slate-800 focus:outline-none focus:border-violet-500 transition-colors shadow-sm"
+                placeholder="Type your email..."
+                maxLength={20}
+              />
+              {errors.email && (
+                <p className="text-[11px] text-red-500 mt-0.5">
+                  {errors.email}
                 </p>
               )}
             </div>
@@ -294,79 +294,17 @@ export default function SignUp({
                   setPassword(e.target.value);
                   if (errors.password)
                     setErrors((prev) => ({ ...prev, password: "" }));
+                  if (errors.general)
+                    setErrors((prev) => ({ ...prev, general: "" }));
                 }}
                 onFocus={() => setIsPasswordFocused(true)}
                 onBlur={() => setIsPasswordFocused(false)}
                 className="w-full px-3 py-1.5 bg-white/70 border border-slate-300 rounded font-patrick text-md text-slate-800 focus:outline-none focus:border-violet-500 transition-colors shadow-sm"
                 placeholder="••••••••"
               />
-              {passwordStrengthMsg && (
-                <p className="text-[10px] text-slate-500 mt-1 select-text leading-tight">
-                  {passwordStrengthMsg}
-                </p>
-              )}
               {errors.password && (
                 <p className="text-[11px] text-red-500 mt-0.5">
                   {errors.password}
-                </p>
-              )}
-            </div>
-
-            {/* Confirm Password */}
-            <div>
-              <label className="text-slate-500 font-bold text-xs uppercase tracking-wider mb-1 flex items-center gap-1">
-                <Lock size={12} />
-                <span>Repeat Keycode</span>
-              </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value);
-                  if (errors.confirmPassword)
-                    setErrors((prev) => ({ ...prev, confirmPassword: "" }));
-                }}
-                onFocus={() => setIsPasswordFocused(true)}
-                onBlur={() => setIsPasswordFocused(false)}
-                className="w-full px-3 py-1.5 bg-white/70 border border-slate-300 rounded font-patrick text-md text-slate-800 focus:outline-none focus:border-violet-500 transition-colors shadow-sm"
-                placeholder="••••••••"
-              />
-              {errors.confirmPassword && (
-                <p className="text-[11px] text-red-500 mt-0.5">
-                  {errors.confirmPassword}
-                </p>
-              )}
-            </div>
-
-            {/* Humorous Runaway Checkbox */}
-            <div className="relative py-1 h-8 z-30 select-none">
-              <div
-                style={{
-                  transform: `translate(${runawayOffset.x}px, ${runawayOffset.y}px)`,
-                  transition:
-                    "transform 0.15s cubic-bezier(0.25, 0.8, 0.25, 1)",
-                }}
-                onMouseEnter={handleRunawayHover}
-                onClick={handleRunawayClick}
-                className="absolute inline-flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-300 rounded px-2 py-0.5 select-none shadow-sm hover:bg-slate-100"
-              >
-                <input
-                  type="checkbox"
-                  checked={isHumanChecked}
-                  onChange={() => {}} // Controlled manually
-                  className="cursor-pointer"
-                />
-                <span className="text-[12px] font-bold text-slate-600 select-none">
-                  {isHumanChecked
-                    ? "✅ Verified Human"
-                    : runawayCount > 0
-                      ? "👉 I am totally NOT a paper shredder!"
-                      : "I am not a paper shredder"}
-                </span>
-              </div>
-              {errors.human && !isHumanChecked && (
-                <p className="text-[11px] text-red-500 mt-7 block">
-                  {errors.human}
                 </p>
               )}
             </div>
@@ -381,7 +319,7 @@ export default function SignUp({
                   before:content-[''] before:absolute before:-left-1 before:top-0 before:bottom-0 before:w-1.5 before:bg-[linear-gradient(45deg,#f43f5e_25%,transparent_25%),linear-gradient(-45deg,#f43f5e_25%,transparent_25%)] before:bg-size-[6px_6px]
                 "
               >
-                Register Member Slip ✍️
+                {isLoading ? "Filing Slip... ⏳" : "Register Member Slip ✍️"}
               </button>
             </div>
           </form>
@@ -391,7 +329,9 @@ export default function SignUp({
             <span className="text-xs text-slate-500">Already registered?</span>
             <button
               type="button"
-              onClick={() => {window.location.href = "/sign-in";}}
+              onClick={() => {
+                window.location.href = "/sign-in";
+              }}
               className="text-xs text-violet-600 hover:text-violet-850 font-bold hover:underline cursor-pointer ml-1"
             >
               Sign In
