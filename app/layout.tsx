@@ -4,9 +4,6 @@ import "@/app/globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 import { cn } from "@/lib/utils";
-import Header from "@/components/Header/Header";
-import Footer from "@/components/Footer/Footer";
-import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "SyntaxNote",
@@ -19,23 +16,18 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   return (
-    <html lang="en" className="dark">
+    <html
+      lang="en"
+      className="dark"
+    >
       <body
         className={cn(
           inter.className,
-          "dark:bg-black bg-amber-50 dark:text-white min-h-screen flex flex-col justify-between",
+          " bg-amber-50 min-h-screen flex flex-col justify-between",
         )}
       >
-        <Header user={user?.user_metadata?.name ?? user?.email ?? null} />
         <main className="w-full grow flex flex-col">{children}</main>
-        <Footer />
       </body>
     </html>
   );
