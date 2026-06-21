@@ -7,7 +7,7 @@ export const CreateNoteSchema = z.object({
     .min(1, "Tittle is required")
     .max(50, "Tittle is too long"),
 
-    cobtent: z
+    content: z
     .string()
     .default(""),
 
