@@ -53,7 +53,7 @@ export default function AppLayout({
     <div
       className={cx(
         inter.className,
-        "min-h-screen flex bg-base-300 text-base-content relative overflow-hidden transition-colors duration-300",
+        "min-h-screen flex bg-white text-slate-800 relative overflow-hidden transition-colors duration-300",
       )}
     >
       {/* Dynamic Background Glows */}
@@ -68,12 +68,12 @@ export default function AppLayout({
       {/* Main Workspace Frame */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Header bar with dynamic breadcrumbs (padded on mobile due to absolute mobile header) */}
-        <header className="h-16 border-b border-base-content/10 bg-base-200/50 backdrop-blur-md flex items-center justify-between px-6 z-20 shrink-0 mt-16 md:mt-0 transition-colors">
+        <header className="h-16 border-b border-dashed border-neutral-300 bg-white/90 backdrop-blur-md flex items-center justify-between px-6 z-20 shrink-0 mt-16 md:mt-0 transition-colors">
           {/* Breadcrumb Indicators */}
-          <div className="flex items-center gap-2 text-xs font-semibold text-base-content/50 uppercase tracking-wider">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <span>SyntaxNote Workspace</span>
             <span className="opacity-40 font-mono">/</span>
-            <span className="text-primary font-bold">
+            <span className="text-violet-650 font-bold font-patrick text-[13px] tracking-wide">
               {getBreadcrumbName(pathname)}
             </span>
           </div>
